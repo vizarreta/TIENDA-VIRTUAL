@@ -1,0 +1,98 @@
+@startuml
+!pragma layout smetana
+title Tienda Virtual\nDiagrama UML de componentes
+top to bottom direction
+skinparam componentStyle uml2
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 24
+skinparam ArrowColor #516574
+skinparam ArrowThickness 1.2
+skinparam packageStyle rectangle
+skinparam nodesep 90
+skinparam ranksep 55
+skinparam component {
+  BackgroundColor #F3F7FA
+  BorderColor #41657D
+  FontColor #20323F
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #087E8B
+  FontColor #20323F
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #94A7B4
+  FontColor #20323F
+  FontStyle bold
+}
+skinparam note {
+  BackgroundColor #FFF9E8
+  BorderColor #BBA663
+  FontColor #4D4631
+}
+
+package "Frontend | React / navegador" {
+  component "Interfaz de la tienda\nCatalogo, carrito y pedidos\nAcceso y administracion" as Views
+  component "Estado de la aplicacion\nHooks / AuthContext / CartContext" as State
+  component "Cliente de API interna\nServicios por dominio / Axios" as Internal
+  component "Internacionalizacion\ni18next / es, en, pt" as Languages
+  component "Conversor de monedas\nCurrencyConverter / conversion.ts" as Converter
+  component "Cliente de tasas\nuseExchangeRates / cache\nexchange-rates.api / fetch" as External
+  Views .down.> State : utiliza
+  State .down.> Internal : consulta
+  Views ..> Languages : textos
+  Converter ..> Languages : textos
+  Converter .down.> External : obtiene tasas
+}
+
+interface "API REST /api" as StoreAPI
+
+package "Backend | NestJS" {
+  component "Controladores REST\nAuth, Products, Cart,\nOrders y Users" as Controllers
+  component "Validacion y acceso\nDTO / ValidationPipe\nJWT / roles / guards" as Validation
+  component "Servicios de dominio\nAuth, Products, Cart,\nOrders y Users" as Services
+  component "Reglas de pedidos\nPrecios / inventario" as Orders
+  component "Persistencia\nPrismaService / transacciones" as Prisma
+  Controllers .down.> Validation : protege y valida
+  Controllers .down.> Services : delega
+  Services .down.> Orders : calcula / reserva
+  Services ..> Prisma : consulta / modifica
+  Orders .down.> Prisma : misma transaccion
+}
+
+package "Datos locales" {
+  component "SQLite\nProductos, usuarios,\ncarritos y pedidos" as DB <<database>>
+}
+
+package "Servicios externos" {
+  interface "Tasas" as RatesAPI
+  component "ExchangeRate-API\nTipos de cambio PEN" as Rates
+  component "Supabase Auth\nOAuth / JWKS" as Supabase <<opcional>>
+  RatesAPI -- Rates
+}
+
+Internal ..> StoreAPI : requiere\nsesion / JWT
+StoreAPI -- Controllers
+Prisma ..> DB : SQL
+External ..> RatesAPI : requiere\nGET /v6/latest/PEN
+State ..> Supabase : OAuth opcional
+Validation ..> Supabase : valida token\nJWKS opcional
+
+note right of External
+  Consulta directa desde el navegador.
+  No envia importe, JWT ni sesion.
+  No modifica la moneda de los pedidos.
+end note
+
+legend bottom left
+  Componente UML: rectangulo con simbolo de componente.
+  Circulo: interfaz proporcionada por un componente.
+  Flecha discontinua: dependencia (cliente -> proveedor).
+  Se agrupan clases relacionadas por responsabilidad.
+  Billing y Reviews quedan fuera del alcance mostrado.
+endlegend
+@enduml

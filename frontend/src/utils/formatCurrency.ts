@@ -1,18 +1,24 @@
 /**
  * 🔵 FUNCIÓN STATELESS (Sin Estado)
- * 
+ *
  * Esta es una función PURA que no mantiene estado interno.
  * Siempre produce la misma salida para la misma entrada.
  * No tiene efectos secundarios (side effects).
- * 
- * Ejemplo: formatCurrency(29.99) → "$29.99"
- *          formatCurrency(29.99) → siempre "$29.99"
+ *
+ * Ejemplo: formatCurrency(29.99) → "S/ 29.99"
+ *          formatCurrency(29.99) → siempre "S/ 29.99"
  */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
+const localeByLanguage: Record<string, string> = {
+  en: 'en-US',
+  es: 'es-PE',
+  pt: 'pt-BR',
+};
+
+export function formatCurrency(amount: number, language = 'es', currency = 'PEN'): string {
+  return new Intl.NumberFormat(localeByLanguage[language] ?? localeByLanguage.es, {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(amount);
 }

@@ -22,14 +22,14 @@ async function main() {
   }
 
   const products = [
-    { name: 'Zapatos Deportivos', description: 'Zapatos ligeros con suela antideslizante, ideales para correr y entrenar.', price: 89.99, image: 'https://picsum.photos/400/300?random=1', stock: 25, category: 'Calzado' },
-    { name: 'Camiseta Premium', description: 'Camiseta de algodón 100% con diseño moderno y corte slim fit.', price: 34.99, image: 'https://picsum.photos/400/300?random=2', stock: 50, category: 'Ropa' },
-    { name: 'Mochila Urbana', description: 'Mochila resistente al agua con compartimento para laptop de 15 pulgadas.', price: 59.99, image: 'https://picsum.photos/400/300?random=3', stock: 30, category: 'Accesorios' },
-    { name: 'Audífonos Bluetooth', description: 'Audífonos inalámbricos con cancelación de ruido y 20 horas de batería.', price: 49.99, image: 'https://picsum.photos/400/300?random=4', stock: 40, category: 'Electrónica' },
-    { name: 'Reloj Clásico', description: 'Reloj analógico con correa de cuero genuino y resistencia al agua.', price: 129.99, image: 'https://picsum.photos/400/300?random=5', stock: 15, category: 'Accesorios' },
-    { name: 'Gafas de Sol', description: 'Gafas polarizadas con protección UV400 y montura ultraligera.', price: 44.99, image: 'https://picsum.photos/400/300?random=6', stock: 35, category: 'Accesorios' },
-    { name: 'Zapatillas Casual', description: 'Zapatillas cómodas para uso diario con plantilla acolchada.', price: 74.99, image: 'https://picsum.photos/400/300?random=7', stock: 20, category: 'Calzado' },
-    { name: 'Gorra Snapback', description: 'Gorra ajustable con bordado frontal y visera plana.', price: 24.99, image: 'https://picsum.photos/400/300?random=8', stock: 60, category: 'Ropa' },
+    { name: 'Zapatos Deportivos', description: 'Calzado deportivo rojo con cordones y suela blanca.', price: 89.99, image: '/images/products/deportivos.jpg', stock: 25, category: 'Calzado' },
+    { name: 'Camiseta Premium', description: 'Camiseta blanca de manga corta, cuello redondo y diseño liso.', price: 34.99, image: '/images/products/camiseta.jpg', stock: 50, category: 'Ropa' },
+    { name: 'Mochila Urbana', description: 'Mochila azul oscuro con asa superior, cierre de cremallera y bolsillo frontal.', price: 59.99, image: '/images/products/mochila.jpg', stock: 30, category: 'Accesorios' },
+    { name: 'Audífonos Bluetooth', description: 'Audífonos de diadema negros con almohadillas y diseño sobre la oreja.', price: 49.99, image: '/images/products/audifonos.jpg', stock: 40, category: 'Electrónica' },
+    { name: 'Reloj Clásico', description: 'Reloj analógico con esfera clara, subesferas y correa marrón.', price: 129.99, image: '/images/products/reloj.jpg', stock: 15, category: 'Accesorios' },
+    { name: 'Gafas de Sol', description: 'Gafas de sol con lentes redondas oscuras y montura metálica fina.', price: 44.99, image: '/images/products/gafas.jpg', stock: 35, category: 'Accesorios' },
+    { name: 'Zapatillas Casual', description: 'Zapatillas de color granate con cordones, franja lateral y suela blanca.', price: 74.99, image: '/images/products/casual.jpg', stock: 20, category: 'Calzado' },
+    { name: 'Gorra Snapback', description: 'Gorra blanca con visera curva, diseño liso y paneles de malla.', price: 24.99, image: '/images/products/gorra.jpg', stock: 60, category: 'Ropa' },
   ];
 
   for (const p of products) {
@@ -44,7 +44,13 @@ async function main() {
         where: { name: p.name }
       });
 
-      if (!existingProduct) {
+      // Repair only the original demo records; preserve merchant-edited products.
+      if (existingProduct?.image?.startsWith('https://picsum.photos/')) {
+        await prisma.product.update({
+          where: { id: existingProduct.id },
+          data: { description: p.description, image: p.image },
+        });
+      } else if (!existingProduct) {
         await prisma.product.create({
           data: {
             name: p.name,

@@ -5,146 +5,80 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CartService {
   constructor(private prisma: PrismaService) {}
 
-  // Busca o crea un carrito para la sesión dada
-  private async getOrCreateCart(sessionId: string) {
-    let cart = await this.prisma.cart.findFirst({
-      where: { sessionId },
-    });
-
-    if (!cart) {
-      cart = await this.prisma.cart.create({
-        data: { sessionId },
-      });
-    }
-
-    return cart;
-  }
-
   async getCart(sessionId: string) {
-    const cart = await this.getOrCreateCart(sessionId);
-
     const items = await this.prisma.cartItem.findMany({
-      where: { cartId: cart.id },
-      include: {
-        product: {
-          include: { category: true },
-        },
-      },
+      where: { cart: { sessionId } },
+      include: { product: { include: { category: true } } },
+      orderBy: { id: 'asc' },
     });
-
-    // Transformar para compatibilidad con el frontend
     return items.map((item) => ({
-      id: Number(item.id),
-      quantity: item.quantity,
-      productId: Number(item.productId),
-      product: {
-        id: Number(item.product.id),
-        name: item.product.name,
-        description: item.product.description,
-        price: Number(item.product.price),
-        image: item.product.image,
-        stock: item.product.stock,
-        category: item.product.category?.name || 'Sin categoría',
-      },
+      ...item,
+      product: { ...item.product, category: item.product.category?.name || '' },
     }));
   }
 
-  async addToCart(sessionId: string, productId: number, quantity: number) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${productId} not found`);
-    }
-
-    if (product.stock < quantity) {
-      throw new BadRequestException('Not enough stock available');
-    }
-
-    const cart = await this.getOrCreateCart(sessionId);
-
-    // Buscar si ya existe el producto en el carrito
-    const existingItem = await this.prisma.cartItem.findFirst({
-      where: { cartId: cart.id, productId },
-    });
-
-    if (existingItem) {
-      const newQuantity = existingItem.quantity + quantity;
-      if (product.stock < newQuantity) {
-        throw new BadRequestException('Not enough stock available');
-      }
-      await this.prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: newQuantity },
+  async addToCart(sessionId: string, productId: number, quantity = 1) {
+    this.checkQuantity(quantity);
+    await this.prisma.transaction(async (tx) => {
+      // Acquire SQLite's write lock before reading quantities and stock.
+      const cart = await tx.cart.upsert({
+        where: { sessionId },
+        create: { sessionId },
+        update: { updatedAt: new Date() },
       });
-    } else {
-      await this.prisma.cartItem.create({
-        data: {
-          cartId: cart.id,
-          productId,
-          quantity,
-        },
+      const product = await tx.product.findUnique({ where: { id: productId } });
+      if (!product || !product.isActive) throw new NotFoundException('PRODUCT_UNAVAILABLE');
+      const item = await tx.cartItem.upsert({
+        where: { cartId_productId: { cartId: cart.id, productId } },
+        create: { cartId: cart.id, productId, quantity },
+        update: { quantity: { increment: quantity } },
       });
-    }
+      if (item.quantity > product.stock) throw new BadRequestException('INSUFFICIENT_STOCK');
+    });
+    return this.getCart(sessionId);
+  }
 
+  async updateQuantity(sessionId: string, cartItemId: number, quantity: number) {
+    this.checkQuantity(quantity);
+    await this.prisma.transaction(async (tx) => {
+      await tx.cart.updateMany({ where: { sessionId }, data: { updatedAt: new Date() } });
+      const item = await tx.cartItem.findFirst({
+        where: { id: cartItemId, cart: { sessionId } },
+        include: { product: true },
+      });
+      if (!item) throw new NotFoundException('CART_ITEM_NOT_FOUND');
+      if (!item.product.isActive) throw new BadRequestException('PRODUCT_UNAVAILABLE');
+      if (quantity > item.product.stock) throw new BadRequestException('INSUFFICIENT_STOCK');
+      await tx.cartItem.update({ where: { id: item.id }, data: { quantity } });
+    });
     return this.getCart(sessionId);
   }
 
   async removeFromCart(sessionId: string, cartItemId: number) {
-    const cart = await this.getOrCreateCart(sessionId);
-
-    const cartItem = await this.prisma.cartItem.findUnique({
-      where: { id: cartItemId },
+    const result = await this.prisma.cartItem.deleteMany({
+      where: { id: cartItemId, cart: { sessionId } },
     });
-
-    if (!cartItem || cartItem.cartId !== cart.id) {
-      throw new NotFoundException('Cart item not found in this session');
-    }
-
-    await this.prisma.cartItem.delete({
-      where: { id: cartItemId },
-    });
-
+    if (!result.count) throw new NotFoundException('CART_ITEM_NOT_FOUND');
     return { success: true };
   }
 
-  async updateQuantity(sessionId: string, cartItemId: number, quantity: number) {
-    const cart = await this.getOrCreateCart(sessionId);
-
-    const cartItem = await this.prisma.cartItem.findUnique({
-      where: { id: cartItemId },
-      include: { product: true },
-    });
-
-    if (!cartItem || cartItem.cartId !== cart.id) {
-      throw new NotFoundException('Cart item not found in this session');
-    }
-
-    if (cartItem.product.stock < quantity) {
-      throw new BadRequestException('Not enough stock available');
-    }
-
-    await this.prisma.cartItem.update({
-      where: { id: cartItemId },
-      data: { quantity },
-    });
-
-    return this.getCart(sessionId);
-  }
-
   async clearCart(sessionId: string) {
-    const cart = await this.getOrCreateCart(sessionId);
-
-    await this.prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    });
-
+    await this.prisma.cartItem.deleteMany({ where: { cart: { sessionId } } });
     return { success: true };
   }
 
   async getCartTotal(sessionId: string) {
     const items = await this.getCart(sessionId);
-    return items.reduce((total, item) => total + (item.quantity * item.product.price), 0);
+    return (
+      items.reduce(
+        (total, item) => total + Math.round(item.product.price * 100) * item.quantity,
+        0
+      ) / 100
+    );
+  }
+
+  private checkQuantity(quantity: number) {
+    if (!Number.isSafeInteger(quantity) || quantity < 1)
+      throw new BadRequestException('INVALID_QUANTITY');
   }
 }

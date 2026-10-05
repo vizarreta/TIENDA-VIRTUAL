@@ -5,7 +5,17 @@ export default {
     './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'scaleY(0.95) translateY(-4px)' },
+          '100%': { opacity: '1', transform: 'scaleY(1) translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.12s ease-out forwards',
+      },
+    },
   },
   plugins: [],
 }

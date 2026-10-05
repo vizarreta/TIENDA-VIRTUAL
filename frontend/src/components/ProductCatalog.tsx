@@ -1,104 +1,191 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
 import ProductCard from './ProductCard';
-import { Product, useCart } from '../context/CartContext';
-import { getProducts, searchProducts } from '../services/api';
+import { useCart } from '../context/CartContext';
+import { useCatalog } from '../modules/catalog/useCatalog';
+import type { CatalogSort } from '../modules/catalog/catalog.selectors';
 
-/**
- * 🔴 COMPONENTE STATEFUL (Con Estado)
- * 
- * Este componente mantiene TRES ESTADOS INTERNOS:
- * - products: Lista de productos cargados (CAMBIA con datos de la API)
- * - searchTerm: Texto de búsqueda del usuario (CAMBIA con cada tecla)
- * - loading: Estado de carga (CAMBIA entre true/false)
- * 
- * Usa useState y useEffect para manejar datos dinámicos.
- * El estado MUTA según la interacción del usuario y respuestas de la API.
- */
-const ProductCatalog: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
+/** Vista del catálogo: delega la carga, los filtros y el orden al módulo catalog. */
+export default function ProductCatalog() {
+  const { t, i18n } = useTranslation('productCatalog');
+  const cart = useCart();
+  const {
+    filters,
+    categories,
+    visible,
+    invalidPrice,
+    loading,
+    error,
+    updateFilter,
+    resetFilters,
+    refresh,
+    page,
+    totalPages,
+    totalItems,
+    setPage,
+    hasNextPage,
+    hasPrevPage,
+  } = useCatalog(i18n.resolvedLanguage);
+  const { search, category, minPrice: min, maxPrice: max, sort, inStock } = filters;
   
-  const { addToCart } = useCart();
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        let response;
-        if (searchTerm.trim().length > 0) {
-          response = await searchProducts(searchTerm);
-        } else {
-          response = await getProducts();
-        }
-        
-        if (isMounted) {
-          setProducts(response.data);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    const delayDebounceFn = setTimeout(() => {
-      fetchProducts();
-    }, 300);
-
-    return () => {
-      clearTimeout(delayDebounceFn);
-      isMounted = false;
-    };
-  }, [searchTerm]);
-
-  const handleAddToCart = (productId: number) => {
-    addToCart(productId, 1);
-  };
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <div className="relative max-w-xl mx-auto">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-            </svg>
-          </div>
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <h1 className="text-2xl font-bold mb-5">{t('title')}</h1>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
+        <label className="sm:col-span-2 lg:col-span-2">
+          <span className="sr-only">{t('searchPlaceholder')}</span>
           <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Buscar productos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            type="search"
+            value={search}
+            onChange={(e) => updateFilter('search', e.target.value)}
+            placeholder={t('searchPlaceholder')}
+            className="w-full border rounded p-2.5 h-full"
           />
-        </div>
+        </label>
+        <label className="text-sm">
+          {t('category')}
+          <select
+            value={category}
+            onChange={(e) => updateFilter('category', e.target.value)}
+            className="w-full border rounded p-2 mt-1"
+          >
+            <option value="">{t('all')}</option>
+            {categories.map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          {t('minPrice')}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={min}
+            onChange={(e) => updateFilter('minPrice', e.target.value)}
+            className="w-full border rounded p-2 mt-1"
+          />
+        </label>
+        <label className="text-sm">
+          {t('maxPrice')}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={max}
+            onChange={(e) => updateFilter('maxPrice', e.target.value)}
+            className="w-full border rounded p-2 mt-1"
+          />
+        </label>
       </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      ) : products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map(product => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              onAddToCart={handleAddToCart} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-xl">No se encontraron productos para "{searchTerm}"</p>
-        </div>
+      <div className="flex flex-wrap items-center gap-4 mb-6 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={inStock}
+            onChange={(e) => updateFilter('inStock', e.target.checked)}
+          />
+          {t('inStock')}
+        </label>
+        <label className="flex items-center gap-2">
+          {t('sort')}
+          <select
+            value={sort}
+            onChange={(e) => updateFilter('sort', e.target.value as CatalogSort)}
+            className="border rounded p-2"
+          >
+            {['name', 'priceAsc', 'priceDesc'].map((value) => (
+              <option key={value} value={value}>
+                {t(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button onClick={resetFilters} className="underline text-indigo-700">
+          {t('reset')}
+        </button>
+      </div>
+      {invalidPrice && (
+        <p role="alert" className="text-red-700 mb-4">
+          {t('invalidPrice')}
+        </p>
       )}
-    </div>
+      {cart.error && (
+        <p role="alert" className="text-red-700 mb-4">
+          {t(`common:errors.${cart.error}`)}{' '}
+          <button className="underline" onClick={() => void cart.refreshCart()}>
+            {t('common:retry')}
+          </button>
+        </p>
+      )}
+      {cart.notice && (
+        <p role="status" className="text-green-700 mb-4">
+          {t('productCard:added')}
+        </p>
+      )}
+      {error ? (
+        <p role="alert" className="py-8 text-red-700">
+          {t(`common:errors.${error}`)}{' '}
+          <button onClick={refresh} className="underline">
+            {t('common:retry')}
+          </button>
+        </p>
+      ) : loading ? (
+        <p role="status" className="py-12">
+          {t('common:loading')}
+        </p>
+      ) : visible.length ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {visible.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                disabled={cart.busy || cart.loading}
+                onAddToCart={(id) => {
+                  void cart.addToCart(id);
+                }}
+              />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <nav className="mt-6 flex items-center justify-between" aria-label="Pagination">
+              <p className="text-sm text-gray-700">
+                {t('paginationInfo', { 
+                  start: (page - 1) * 20 + 1, 
+                  end: Math.min(page * 20, totalItems),
+                  total: totalItems 
+                })}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={!hasPrevPage}
+                  className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={t('previousPage')}
+                >
+                  {t('previous')}
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  {t('pageOf', { current: page, total: totalPages })}
+                </span>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={!hasNextPage}
+                  className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label={t('nextPage')}
+                >
+                  {t('next')}
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
+      ) : (
+        <p className="py-12 text-gray-600">
+          {search ? t('noProductsFound', { searchTerm: search }) : t('noProducts')}
+        </p>
+      )}
+    </section>
   );
-};
-
-export default ProductCatalog;
+}

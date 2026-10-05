@@ -1,120 +1,143 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useCart } from '../context/CartContext';
 import { formatCurrency } from '../utils/formatCurrency';
+import ProductImage from './ProductImage';
 
-interface CartDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
-  const { cartItems, cartTotal, removeFromCart, updateQuantity, clearCart } = useCart();
-
+export default function CartDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t, i18n } = useTranslation('cartDrawer');
+  const {
+    cartItems,
+    cartTotal,
+    loading,
+    busy,
+    error,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    refreshCart,
+  } = useCart();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (isOpen && !dialog.current?.open) dialog.current?.showModal();
+    if (!isOpen && dialog.current?.open) dialog.current.close();
+  }, [isOpen]);
   return (
-    <>
-      {/* Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
-          onClick={onClose}
-        ></div>
-      )}
-
-      {/* Drawer */}
-      <div 
-        className={`fixed inset-y-0 right-0 w-full max-w-sm sm:w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Tu Carrito</h2>
-          <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 focus:outline-none"
-          >
+    <dialog
+      ref={dialog}
+      aria-labelledby="cart-title"
+      onCancel={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-sm p-0 backdrop:bg-black/50 shadow-2xl"
+    >
+      <div className="flex flex-col h-full bg-white">
+        <div className="p-5 border-b flex items-center justify-between gap-3">
+          <h2 id="cart-title" className="text-xl font-bold">
+            {t('title')}
+          </h2>
+          <button onClick={onClose} title={t('close')} aria-label={t('close')} className="p-2">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {cartItems.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500">
-              <span className="text-5xl mb-4">🛒</span>
-              <p className="text-lg font-medium">Tu carrito está vacío</p>
+        <div className="flex-1 overflow-y-auto p-5">
+          {error && (
+            <div role="alert" className="mb-4 text-red-700">
+              {t(`common:errors.${error}`)}{' '}
+              <button onClick={() => void refreshCart()} className="underline">
+                {t('common:retry')}
+              </button>
             </div>
-          ) : (
-            <ul className="space-y-6">
-              {cartItems.map((item) => (
-                <li key={item.id} className="flex flex-col py-2 border-b border-gray-100">
-                  <div className="flex items-center">
-                    <img 
-                      src={item.product.image || 'https://via.placeholder.com/64?text=No+Image'} 
-                      alt={item.product.name} 
-                      className="w-16 h-16 object-cover rounded shadow-sm mr-4"
-                    />
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2">{item.product.name}</h3>
-                      <p className="text-sm text-gray-500">{formatCurrency(item.product.price)}</p>
-                    </div>
+          )}
+          {loading && (
+            <p role="status" className="text-sm text-gray-600">
+              {t('updating')}
+            </p>
+          )}
+          {!loading && !cartItems.length && (
+            <p className="py-12 text-center text-gray-600">{t('empty')}</p>
+          )}
+          <ul className="divide-y">
+            {cartItems.map((item) => (
+              <li key={item.id} className="py-4">
+                <div className="flex gap-3">
+                  <ProductImage
+                    src={item.product?.image}
+                    name={item.product?.name || t('fallbackProductName')}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium break-words">
+                      {item.product?.name || t('fallbackProductName')}
+                    </h3>
+                    <p className="text-gray-600">
+                      {formatCurrency(item.product?.price || 0, i18n.resolvedLanguage)}
+                    </p>
                   </div>
-                  
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center border border-gray-300 rounded">
-                      <button 
-                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                        className="px-2 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
-                        disabled={item.quantity <= 1}
-                      >
-                        -
-                      </button>
-                      <span className="px-4 py-1 text-sm text-gray-700 bg-gray-50 border-x border-gray-300">
-                        {item.quantity}
-                      </span>
-                      <button 
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="px-2 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button 
-                      onClick={() => removeFromCart(item.id)}
-                      className="text-sm text-red-500 hover:text-red-700 font-medium focus:outline-none"
+                </div>
+                <div className="flex justify-between items-center mt-3 gap-3">
+                  <div className="flex items-center border rounded">
+                    <button
+                      className="w-9 h-9 disabled:opacity-40"
+                      disabled={busy || loading || item.quantity <= 1}
+                      aria-label={t('decreaseQuantity', { product: item.product?.name })}
+                      onClick={() => void updateQuantity(item.id, item.quantity - 1)}
                     >
-                      Eliminar
+                      -
+                    </button>
+                    <span className="min-w-9 text-center tabular-nums">{item.quantity}</span>
+                    <button
+                      className="w-9 h-9 disabled:opacity-40"
+                      disabled={busy || loading || item.quantity >= (item.product?.stock || 0)}
+                      aria-label={t('increaseQuantity', { product: item.product?.name })}
+                      onClick={() => void updateQuantity(item.id, item.quantity + 1)}
+                    >
+                      +
                     </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                  <button
+                    disabled={busy || loading}
+                    onClick={() => void removeFromCart(item.id)}
+                    className="text-red-700 text-sm disabled:opacity-40"
+                  >
+                    {t('remove')}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-
-        {cartItems.length > 0 && (
-          <div className="border-t border-gray-200 p-6 bg-gray-50">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-base font-medium text-gray-900">Total</span>
-              <span className="text-xl font-bold text-gray-900">{formatCurrency(cartTotal)}</span>
+        {!!cartItems.length && (
+          <div className="p-5 border-t space-y-3">
+            <div className="flex justify-between font-bold">
+              <span>{t('total')}</span>
+              <span>{formatCurrency(cartTotal, i18n.resolvedLanguage)}</span>
             </div>
-            <button 
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors mb-3"
-              onClick={() => alert('¡Proceso de pago no implementado en esta demo!')}
+            <Link
+              to="/checkout"
+              onClick={(event) => {
+                if (busy || loading) event.preventDefault();
+                else onClose();
+              }}
+              aria-disabled={busy || loading}
+              className="block text-center rounded bg-indigo-600 text-white py-3"
             >
-              Proceder al pago
-            </button>
-            <button 
-              onClick={clearCart}
-              className="w-full bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded-lg shadow-sm transition-colors"
+              {t('checkout')}
+            </Link>
+            <button
+              disabled={busy || loading}
+              onClick={() => void clearCart()}
+              className="w-full border rounded py-2 disabled:opacity-40"
             >
-              Vaciar Carrito
+              {t('clearCart')}
             </button>
           </div>
         )}
       </div>
-    </>
+    </dialog>
   );
-};
-
-export default CartDrawer;
+}

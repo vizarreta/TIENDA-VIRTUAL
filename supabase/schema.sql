@@ -491,11 +491,11 @@ INSERT INTO categories (name, description) VALUES
   ('Electrónica', 'Audífonos, gadgets y dispositivos electrónicos');
 
 INSERT INTO products (name, description, price, image, stock, category_id) VALUES
-  ('Zapatos Deportivos',  'Zapatos ligeros con suela antideslizante, ideales para correr y entrenar.',       89.99,  'https://picsum.photos/400/300?random=1', 25, (SELECT id FROM categories WHERE name = 'Calzado')),
-  ('Camiseta Premium',    'Camiseta de algodón 100% con diseño moderno y corte slim fit.',                   34.99,  'https://picsum.photos/400/300?random=2', 50, (SELECT id FROM categories WHERE name = 'Ropa')),
-  ('Mochila Urbana',      'Mochila resistente al agua con compartimento para laptop de 15 pulgadas.',        59.99,  'https://picsum.photos/400/300?random=3', 30, (SELECT id FROM categories WHERE name = 'Accesorios')),
-  ('Audífonos Bluetooth', 'Audífonos inalámbricos con cancelación de ruido y 20 horas de batería.',          49.99,  'https://picsum.photos/400/300?random=4', 40, (SELECT id FROM categories WHERE name = 'Electrónica')),
-  ('Reloj Clásico',       'Reloj analógico con correa de cuero genuino y resistencia al agua.',             129.99,  'https://picsum.photos/400/300?random=5', 15, (SELECT id FROM categories WHERE name = 'Accesorios')),
-  ('Gafas de Sol',        'Gafas polarizadas con protección UV400 y montura ultraligera.',                   44.99,  'https://picsum.photos/400/300?random=6', 35, (SELECT id FROM categories WHERE name = 'Accesorios')),
-  ('Zapatillas Casual',   'Zapatillas cómodas para uso diario con plantilla acolchada.',                     74.99,  'https://picsum.photos/400/300?random=7', 20, (SELECT id FROM categories WHERE name = 'Calzado')),
-  ('Gorra Snapback',      'Gorra ajustable con bordado frontal y visera plana.',                             24.99,  'https://picsum.photos/400/300?random=8', 60, (SELECT id FROM categories WHERE name = 'Ropa'));
+  ('Zapatos Deportivos',  'Calzado deportivo rojo con cordones y suela blanca.',       89.99,  '/images/products/deportivos.jpg', 25, (SELECT id FROM categories WHERE name = 'Calzado')),
+  ('Camiseta Premium',    'Camiseta blanca de manga corta, cuello redondo y diseño liso.',                   34.99,  '/images/products/camiseta.jpg', 50, (SELECT id FROM categories WHERE name = 'Ropa')),
+  ('Mochila Urbana',      'Mochila azul oscuro con asa superior, cierre de cremallera y bolsillo frontal.',        59.99,  '/images/products/mochila.jpg', 30, (SELECT id FROM categories WHERE name = 'Accesorios')),
+  ('Audífonos Bluetooth', 'Audífonos de diadema negros con almohadillas y diseño sobre la oreja.',          49.99,  '/images/products/audifonos.jpg', 40, (SELECT id FROM categories WHERE name = 'Electrónica')),
+  ('Reloj Clásico',       'Reloj analógico con esfera clara, subesferas y correa marrón.',             129.99,  '/images/products/reloj.jpg', 15, (SELECT id FROM categories WHERE name = 'Accesorios')),
+  ('Gafas de Sol',        'Gafas de sol con lentes redondas oscuras y montura metálica fina.',                   44.99,  '/images/products/gafas.jpg', 35, (SELECT id FROM categories WHERE name = 'Accesorios')),
+  ('Zapatillas Casual',   'Zapatillas de color granate con cordones, franja lateral y suela blanca.',                     74.99,  '/images/products/casual.jpg', 20, (SELECT id FROM categories WHERE name = 'Calzado')),
+  ('Gorra Snapback',      'Gorra blanca con visera curva, diseño liso y paneles de malla.',                             24.99,  '/images/products/gorra.jpg', 60, (SELECT id FROM categories WHERE name = 'Ropa'));

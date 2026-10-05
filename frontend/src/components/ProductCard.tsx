@@ -1,63 +1,54 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { Product } from '@tienda-virtual/shared-types';
 import { formatCurrency } from '../utils/formatCurrency';
-import { Product } from '../context/CartContext';
+import ProductImage from './ProductImage';
 
-interface ProductCardProps {
+export default function ProductCard({
+  product,
+  onAddToCart,
+  disabled = false,
+}: {
   product: Product;
-  onAddToCart: (productId: number) => void;
-}
-
-/**
- * 🔵 COMPONENTE STATELESS (Sin Estado)
- * 
- * Este componente es una FUNCIÓN PURA que:
- * - Recibe datos por props (producto)
- * - Renderiza siempre el mismo JSX para los mismos props
- * - NO usa useState ni useEffect
- * - NO tiene estado interno ni efectos secundarios
- * 
- * f(props) → JSX (siempre el mismo resultado)
- */
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-  const isOutOfStock = product.stock === 0;
-
+  onAddToCart: (id: number) => void;
+  disabled?: boolean;
+}) {
+  const { t, i18n } = useTranslation('productCard');
+  const category = typeof product.category === 'string' ? product.category : product.category?.name;
   return (
-    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden flex flex-col h-full">
-      <div className="relative">
-        <img 
-          src={product.image || 'https://via.placeholder.com/400x300?text=No+Image'} 
-          alt={product.name} 
+    <article className="bg-white rounded-lg border overflow-hidden flex flex-col h-full">
+      <Link to={`/products/${product.id}`} aria-label={`${t('details')}: ${product.name}`}>
+        <ProductImage
+          src={product.image}
+          name={product.name}
           className="w-full h-48 object-cover"
         />
-        <span className="absolute top-2 right-2 bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-          {product.category}
-        </span>
-      </div>
-      <div className="p-5 flex flex-col flex-grow">
-        <h3 className="text-lg font-bold text-gray-900 mb-1 truncate" title={product.name}>{product.name}</h3>
-        <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-grow">{product.description}</p>
-        
-        <div className="flex justify-between items-center mb-4">
-          <span className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</span>
-          <span className={`text-sm font-medium ${isOutOfStock ? 'text-red-500' : 'text-green-600'}`}>
-            {isOutOfStock ? 'Agotado' : `Stock: ${product.stock}`}
+      </Link>
+      <div className="p-4 flex flex-col flex-1 gap-3">
+        <span className="text-xs text-gray-500">{category}</span>
+        <h2 className="font-bold text-lg break-words">
+          <Link to={`/products/${product.id}`} className="hover:underline">
+            {product.name}
+          </Link>
+        </h2>
+        <p className="text-sm text-gray-600 line-clamp-2 flex-1">{product.description}</p>
+        <div className="flex flex-wrap justify-between items-center gap-2">
+          <span className="font-bold text-xl">
+            {formatCurrency(product.price, i18n.resolvedLanguage)}
+          </span>
+          <span className={`text-xs ${product.stock > 0 ? 'text-green-700' : 'text-red-700'}`}>
+            {product.stock > 0 ? t('stock', { count: product.stock }) : t('outOfStock')}
           </span>
         </div>
-        
         <button
           onClick={() => onAddToCart(product.id)}
-          disabled={isOutOfStock}
-          className={`w-full py-2.5 px-4 rounded-lg font-medium text-white transition-colors
-            ${isOutOfStock 
-              ? 'bg-gray-300 cursor-not-allowed' 
-              : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
-            }`}
+          disabled={disabled || product.stock <= 0}
+          className="w-full py-2.5 px-3 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Agregar al Carrito
+          {t('addToCart')}
         </button>
       </div>
-    </div>
+    </article>
   );
-};
-
-export default ProductCard;
+}
